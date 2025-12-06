@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.UUID;
 
 import static com.saurabhshcs.adtech.microservices.designpattern.saga.common.LogMessage.*;
-import static com.saurabhshcs.adtech.microservices.designpattern.saga.common.ORCHESTRATION_STARTED;
 
 @Slf4j
 public class CampaignOrchestrator {
