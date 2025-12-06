@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.UUID;
 
+import static com.saurabhshcs.adtech.microservices.designpattern.saga.common.LogMessage.*;
+import static com.saurabhshcs.adtech.microservices.designpattern.saga.common.ORCHESTRATION_STARTED;
+
 @Slf4j
 public class CampaignOrchestrator {
 
@@ -21,25 +24,25 @@ public class CampaignOrchestrator {
     private OrchestratorState state = OrchestratorState.STARTED;
 
     public OrchestratorState execute(UUID campaignId, Boolean budgetOk, Boolean inventoryOk, Boolean scheduleOk) {
-        log.info(LogMessage.ORCHESTRATION_STARTED.getMessage(), campaignId);
+        log.info(ORCHESTRATION_STARTED.getMessage(), campaignId);
         try {
             if (!budgetOk) throw new IllegalStateException(BUDGET_FAIL);
             state = OrchestratorState.BUDGET_VALIDATED;
-            log.info(LogMessage.BUDGET_VALIDATED.getMessage(), campaignId);
+            log.info(BUDGET_VALIDATED.getMessage(), campaignId);
 
             if (!inventoryOk) throw new IllegalStateException(INVENTORY_FAIL);
             state = OrchestratorState.INVENTORY_RESERVED;
-            log.info(LogMessage.INVENTORY_RESERVED.getMessage(), campaignId);
+            log.info(INVENTORY_RESERVED.getMessage(), campaignId);
 
             if (!scheduleOk) throw new IllegalStateException(SCHEDULE_FAIL);
             state = OrchestratorState.SCHEDULED;
-            log.info(LogMessage.CAMPAIGN_SCHEDULED.getMessage(), campaignId);
+            log.info(CAMPAIGN_SCHEDULED.getMessage(), campaignId);
 
             state = OrchestratorState.COMPLETED;
-            log.info(LogMessage.ORCHESTRATION_COMPLETED.getMessage(), campaignId);
+            log.info(ORCHESTRATION_COMPLETED.getMessage(), campaignId);
             return state;
         } catch (Exception e) {
-            log.error(LogMessage.ORCHESTRATION_FAILED.getMessage(), campaignId, e.getMessage(), e);
+            log.error(ORCHESTRATION_FAILED.getMessage(), campaignId, e.getMessage(), e);
             compensate(campaignId);
             state = OrchestratorState.FAILED;
             return state;
@@ -47,7 +50,7 @@ public class CampaignOrchestrator {
     }
 
     private void compensate(UUID campaignId) {
-        log.warn(LogMessage.COMPENSATION_TRIGGERED.getMessage(), campaignId);
+        log.warn(COMPENSATION_TRIGGERED.getMessage(), campaignId);
         // In production: cancel inventory, release budget, unschedule
         // Kept minimal for training lab
     }
