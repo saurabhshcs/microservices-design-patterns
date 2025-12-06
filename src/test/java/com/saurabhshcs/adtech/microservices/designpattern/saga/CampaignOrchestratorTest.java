@@ -4,7 +4,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.saurabhshcs.adtech.microservices.designpattern.saga.common.LogMessage;
 import com.saurabhshcs.adtech.microservices.designpattern.saga.common.OrchestratorState;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +13,15 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.UUID;
 
+import static com.saurabhshcs.adtech.microservices.designpattern.saga.common.LogMessage.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CampaignOrchestratorTest {
 
+    private static final String CAMPAIGN_ORCHESTRATION_FAILED = "Campaign orchestration failed";
+    private static final String COMPENSATING_TRANSACTION = "Compensating transaction";
+    private static final String TARGET = "{}";
+    private static final String REPLACEMENT = "";
     private ListAppender<ILoggingEvent> logAppender;
     private Logger logger;
 
@@ -59,11 +63,11 @@ class CampaignOrchestratorTest {
         List<ILoggingEvent> logEvents = logAppender.list;
 
         // Verify all expected log messages are present
-        assertTrue(containsLogMessage(logEvents, LogMessage.ORCHESTRATION_STARTED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.BUDGET_VALIDATED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.INVENTORY_RESERVED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.CAMPAIGN_SCHEDULED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.ORCHESTRATION_COMPLETED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, ORCHESTRATION_STARTED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, BUDGET_VALIDATED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, INVENTORY_RESERVED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, CAMPAIGN_SCHEDULED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, ORCHESTRATION_COMPLETED.getMessage()));
 
         // Verify no error or warning logs
         assertFalse(logEvents.stream().anyMatch(e -> e.getLevel() == Level.ERROR));
@@ -82,12 +86,12 @@ class CampaignOrchestratorTest {
         // Verify error logging occurred
         assertTrue(logEvents.stream().anyMatch(e ->
             e.getLevel() == Level.ERROR &&
-            e.getFormattedMessage().contains("Campaign orchestration failed")));
+            e.getFormattedMessage().contains(CAMPAIGN_ORCHESTRATION_FAILED)));
 
         // Verify compensation warning
         assertTrue(logEvents.stream().anyMatch(e ->
             e.getLevel() == Level.WARN &&
-            e.getFormattedMessage().contains("Compensating transaction")));
+            e.getFormattedMessage().contains(COMPENSATING_TRANSACTION)));
     }
 
     @Test
@@ -100,12 +104,12 @@ class CampaignOrchestratorTest {
         List<ILoggingEvent> logEvents = logAppender.list;
 
         // Should have started but not validated budget
-        assertTrue(containsLogMessage(logEvents, LogMessage.ORCHESTRATION_STARTED.getMessage()));
-        assertFalse(containsLogMessage(logEvents, LogMessage.BUDGET_VALIDATED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, ORCHESTRATION_STARTED.getMessage()));
+        assertFalse(containsLogMessage(logEvents, BUDGET_VALIDATED.getMessage()));
 
         // Should have error and compensation
-        assertTrue(containsLogMessage(logEvents, LogMessage.ORCHESTRATION_FAILED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.COMPENSATION_TRIGGERED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, ORCHESTRATION_FAILED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, COMPENSATION_TRIGGERED.getMessage()));
     }
 
     @Test
@@ -118,20 +122,20 @@ class CampaignOrchestratorTest {
         List<ILoggingEvent> logEvents = logAppender.list;
 
         // Should have validated budget and reserved inventory
-        assertTrue(containsLogMessage(logEvents, LogMessage.BUDGET_VALIDATED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.INVENTORY_RESERVED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, BUDGET_VALIDATED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, INVENTORY_RESERVED.getMessage()));
 
         // Should NOT have scheduled
-        assertFalse(containsLogMessage(logEvents, LogMessage.CAMPAIGN_SCHEDULED.getMessage()));
+        assertFalse(containsLogMessage(logEvents, CAMPAIGN_SCHEDULED.getMessage()));
 
         // Should have failed with compensation
-        assertTrue(containsLogMessage(logEvents, LogMessage.ORCHESTRATION_FAILED.getMessage()));
-        assertTrue(containsLogMessage(logEvents, LogMessage.COMPENSATION_TRIGGERED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, ORCHESTRATION_FAILED.getMessage()));
+        assertTrue(containsLogMessage(logEvents, COMPENSATION_TRIGGERED.getMessage()));
     }
 
-    private boolean containsLogMessage(List<ILoggingEvent> logEvents, String messageTemplate) {
-        String normalizedTemplate = messageTemplate.replace("{}", "").trim();
+    private Boolean containsLogMessage(List<ILoggingEvent> logEvents, String messageTemplate) {
+        String normalizedTemplate = messageTemplate.replace(TARGET, REPLACEMENT).trim();
         return logEvents.stream()
-                .anyMatch(e -> e.getMessage().replace("{}", "").trim().equals(normalizedTemplate));
+                .anyMatch(e -> e.getMessage().replace(TARGET, REPLACEMENT).trim().equals(normalizedTemplate));
     }
 }
