@@ -154,6 +154,15 @@ This is a training repository. Contributions are welcome:
 - Submit pull requests with additional pattern examples
 - Improve test coverage or add documentation
 
+## About the Author
+
+**Saurabh Sharma** is a software engineer with a focus on distributed systems, microservices architecture, and cloud-native applications. This repository is part of his hands-on learning and teaching series on advanced Java and Spring Boot patterns.
+
+- **GitHub:** [@saurabhshcs](https://github.com/saurabhshcs)
+- **Repository:** [microservices-design-patterns](https://github.com/saurabhshcs/microservices-design-patterns)
+
+Feel free to connect, raise issues, or contribute to the project!
+
 ## License
 
 This project is for educational purposes.
