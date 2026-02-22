@@ -1,0 +1,27 @@
+@startuml CQRS - Query Flow
+skinparam sequenceArrowThickness 2
+title CQRS Pattern - Query Side Flow
+
+actor Client
+participant "AccountQueryController" as AQC
+participant "AccountQueryService" as AQS
+participant "InMemoryAccountReadRepository" as ARR
+
+Client -> AQC: GET /queries/accounts/{id}
+activate AQC
+AQC -> AQS: getAccount(accountId)
+activate AQS
+AQS -> ARR: findAccountById(accountId)
+activate ARR
+ARR -> AQS: Optional<AccountView>
+deactivate ARR
+AQS -> AQC: Optional<AccountView>
+deactivate AQS
+AQC -> Client: HTTP 200\nAccountView{balance, ownerName, transactionCount}
+deactivate AQC
+
+note over Client, ARR
+  Query side reads ONLY from the read-optimized
+  AccountView model — never touches write-side Account aggregate
+end note
+@enduml
