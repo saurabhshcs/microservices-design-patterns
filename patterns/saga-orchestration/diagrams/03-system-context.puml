@@ -1,0 +1,15 @@
+@startuml Saga Orchestration - System Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+title System Context - Saga Orchestration Pattern
+
+Person(customer, "Customer", "Places orders on the eCommerce platform")
+System(orderSystem, "Order Management System", "Saga Orchestration Pattern\nSpring Boot 3.4.2 / Java 21")
+System_Ext(paymentGateway, "Payment Gateway", "External payment processor")
+System_Ext(warehouse, "Warehouse System", "Physical inventory management")
+System_Ext(logistics, "Logistics Provider", "Shipping and tracking")
+
+Rel(customer, orderSystem, "Places orders", "HTTP/REST")
+Rel(orderSystem, paymentGateway, "Processes payments", "HTTPS/API")
+Rel(orderSystem, warehouse, "Reserves inventory", "HTTPS/API")
+Rel(orderSystem, logistics, "Schedules shipment", "HTTPS/API")
+@enduml

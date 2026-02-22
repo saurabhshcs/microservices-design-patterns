@@ -1,0 +1,45 @@
+@startuml Saga Orchestration - Happy Path
+skinparam sequenceArrowThickness 2
+skinparam backgroundColor #FEFEFE
+title Saga Orchestration Pattern - Successful Order Flow
+
+actor Customer
+participant "OrderController" as OC
+participant "OrderSagaOrchestrator" as OSO
+participant "PaymentService" as PS
+participant "InventoryService" as IS
+participant "ShippingService" as SS
+
+Customer -> OC: POST /api/v1/orders\n{customerId, productId, quantity, amount}
+activate OC
+OC -> OSO: processOrder(order)
+activate OSO
+
+OSO -> PS: execute(order)
+activate PS
+PS -> PS: validate amount <= 10000
+PS -> PS: processedPayments.put(orderId, PAY-XXXX)
+PS -> OSO: SagaResult.success("PaymentService")
+deactivate PS
+
+OSO -> IS: execute(order)
+activate IS
+IS -> IS: check stock >= quantity
+IS -> IS: stock.merge(productId, -quantity)
+IS -> IS: reservations.put(orderId, quantity)
+IS -> OSO: SagaResult.success("InventoryService")
+deactivate IS
+
+OSO -> SS: execute(order)
+activate SS
+SS -> SS: generate TRK-XXXXXXXX
+SS -> SS: shipments.put(orderId, tracking)
+SS -> OSO: SagaResult.success("ShippingService")
+deactivate SS
+
+OSO -> OSO: order.updateStatus(COMPLETED)
+OSO -> OC: Order{status: COMPLETED}
+deactivate OSO
+OC -> Customer: HTTP 201 Created\nOrder{status: COMPLETED}
+deactivate OC
+@enduml

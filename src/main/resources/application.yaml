@@ -1,3 +1,5 @@
 spring:
   application:
-    name: microservices-design-patterns
+    name: saga-orchestration-ecommerce
+server:
+  port: 8081
