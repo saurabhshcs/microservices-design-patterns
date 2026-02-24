@@ -1,0 +1,110 @@
+@startuml eCommerce Order CQRS Flow
+
+title eCommerce Order — CQRS Sequence Diagram\n(Command Side + Event Projection + Query Side)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 10
+skinparam sequenceParticipant underline
+
+actor Customer
+participant "API Gateway" as API
+participant "PlaceOrder\nCommandHandler" as CH
+participant "Order\n(Aggregate)" as AGG
+database "Write Store\n(PostgreSQL)" as WDB
+participant "Kafka\nEvent Bus" as KAFKA
+participant "OrderSummary\nProjector" as PROJ1
+participant "OrderDetail\nProjector" as PROJ2
+database "Read Store\n(MongoDB)" as RDB
+participant "GetOrderById\nQueryHandler" as QH
+
+== Command: Place Order ==
+
+Customer -> API : POST /api/orders\n{ customerId, items, address }
+API -> CH : PlaceOrderCommand
+CH -> CH : Validate command\n(items not empty, product IDs valid)
+CH -> AGG : Order.place(customerId, items, address)
+activate AGG
+AGG -> AGG : Validate invariants\n(min 1 item, positive total)
+AGG -> AGG : Set status = PENDING
+AGG -> AGG : Emit OrderPlacedEvent
+deactivate AGG
+CH -> WDB : orderRepository.save(order)
+WDB --> CH : saved
+CH -> KAFKA : publish(OrderPlacedEvent)
+KAFKA --> CH : acknowledged
+CH --> API : orderId (UUID)
+API --> Customer : 201 Created\n{ "orderId": "abc-123" }
+
+== Event Projection (Async) ==
+
+KAFKA -> PROJ1 : OrderPlacedEvent
+activate PROJ1
+PROJ1 -> PROJ1 : Build OrderSummaryView\n(join customer name)
+PROJ1 -> RDB : save(OrderSummaryView)
+RDB --> PROJ1 : saved
+deactivate PROJ1
+
+KAFKA -> PROJ2 : OrderPlacedEvent
+activate PROJ2
+PROJ2 -> PROJ2 : Build OrderDetailView\n(embed items, address, customer)
+PROJ2 -> RDB : save(OrderDetailView)
+RDB --> PROJ2 : saved
+deactivate PROJ2
+
+== Query: Get Order ==
+
+Customer -> API : GET /api/orders/abc-123
+API -> QH : GetOrderByIdQuery(orderId)
+QH -> RDB : findOrderDetailById(orderId)
+RDB --> QH : OrderDetailView
+QH --> API : OrderDetailView
+API --> Customer : 200 OK\n{ orderId, status: "PENDING",\n  items, shippingAddress, ... }
+
+== Command: Cancel Order ==
+
+Customer -> API : DELETE /api/orders/abc-123\n{ reason: "Changed mind" }
+API -> CH : CancelOrderCommand
+CH -> WDB : findById(orderId)
+WDB --> CH : Order (status=PENDING)
+CH -> AGG : order.cancel(reason)
+activate AGG
+AGG -> AGG : Validate: status != SHIPPED\nstatus != DELIVERED
+AGG -> AGG : Set status = CANCELLED
+AGG -> AGG : Emit OrderCancelledEvent
+deactivate AGG
+CH -> WDB : orderRepository.save(order)
+CH -> KAFKA : publish(OrderCancelledEvent)
+
+KAFKA -> PROJ1 : OrderCancelledEvent
+PROJ1 -> RDB : updateStatus(orderId, CANCELLED)
+KAFKA -> PROJ2 : OrderCancelledEvent
+PROJ2 -> RDB : updateStatus(orderId, CANCELLED)
+
+CH --> API : void
+API --> Customer : 204 No Content
+
+== Command: Mark Shipped ==
+
+note over CH, KAFKA : (Triggered by warehouse system after carrier pickup)
+API -> CH : MarkOrderShippedCommand(orderId, trackingNumber)
+CH -> WDB : findById(orderId)
+WDB --> CH : Order (status=CONFIRMED)
+CH -> AGG : order.markShipped(trackingNumber)
+activate AGG
+AGG -> AGG : Validate: status == CONFIRMED
+AGG -> AGG : Set status = SHIPPED
+AGG -> AGG : Emit OrderShippedEvent
+deactivate AGG
+CH -> WDB : save(order)
+CH -> KAFKA : publish(OrderShippedEvent)
+
+KAFKA -> PROJ1 : OrderShippedEvent
+PROJ1 -> RDB : updateStatus(orderId, SHIPPED)
+
+KAFKA -> PROJ2 : OrderShippedEvent
+PROJ2 -> RDB : updateStatusAndTracking(orderId, SHIPPED, trackingNumber)
+
+CH --> API : void
+API --> Customer : 204 No Content
+
+@enduml

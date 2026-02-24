@@ -4,14 +4,15 @@ A hands-on training project demonstrating key microservices design patterns impl
 
 ## Project Overview
 
-This project explores the **Saga Pattern** for managing distributed transactions across microservices. Using an ad-tech campaign orchestration use case, it demonstrates how to coordinate multi-step business workflows with proper compensation logic when failures occur.
+This project explores key microservices design patterns implemented in Java. Using real-world domains (ad-tech campaign orchestration and eCommerce order management), it demonstrates how to coordinate multi-step business workflows with proper patterns for consistency, scalability, and maintainability.
 
 ### Patterns Covered
 
-| Pattern | Status | Description |
-|---------|--------|-------------|
-| Saga — Orchestration | Implemented | Central orchestrator controls the workflow and compensation |
-| Saga — Choreography | In Progress | Services react to events and coordinate without a central controller |
+| Pattern | Status | Description | Docs |
+|---------|--------|-------------|------|
+| Saga — Orchestration | Implemented | Central orchestrator controls the workflow and compensation | [docs/orchestration](./docs/orchestration/) |
+| Saga — Choreography | In Progress | Services react to events and coordinate without a central controller | [docs/choreography](./docs/choreography/) |
+| CQRS | Planned | Separate read and write models for scalable, optimised data access | [docs/cqrs](./docs/cqrs/) |
 
 ### Domain Context
 
