@@ -1,0 +1,89 @@
+@startuml UserServiceChoreography
+
+title User Service — Saga Choreography Pattern\n(Event-Driven, No Central Controller)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderThickness 2
+skinparam noteBackgroundColor #FFFACD
+skinparam noteBorderColor #DAA520
+
+actor       "Client"                    as Client
+participant "UserRegistrationService"   as Reg    #90EE90
+queue       "Event Bus\n(Message Broker)" as Bus  #FFD700
+participant "EmailService"              as Email  #ADD8E6
+participant "PreferenceService"         as Pref   #ADD8E6
+participant "AuditService"              as Audit  #E8E8E8
+database    "UserDB"                    as DB     #E6E6FA
+
+== Happy Path — All Steps Succeed ==
+
+Client -> Reg  : POST /users { userName, email }
+activate Reg
+
+Reg   -> DB   : INSERT INTO users
+DB    --> Reg : OK
+
+Reg   -> Bus  : publish(UserRegisteredEvent { userId, email })
+note right of Bus : Topic: user.registered
+Reg   --> Client : 202 Accepted { userId }
+deactivate Reg
+
+Bus   -> Email : consume(UserRegisteredEvent)
+activate Email
+Email --> Email : Send welcome email
+Email -> Bus   : publish(WelcomeEmailSentEvent { userId })
+note right of Bus : Topic: user.email.sent
+deactivate Email
+
+Bus   -> Pref  : consume(UserRegisteredEvent)
+activate Pref
+Pref  --> Pref : Initialise default preferences
+Pref  -> Bus   : publish(PreferencesInitialisedEvent { userId })
+note right of Bus : Topic: user.preferences.set
+deactivate Pref
+
+Bus   -> Audit : consume(UserRegisteredEvent)
+Bus   -> Audit : consume(WelcomeEmailSentEvent)
+Bus   -> Audit : consume(PreferencesInitialisedEvent)
+activate Audit
+Audit --> Audit : Persist audit trail
+deactivate Audit
+
+note over Client, DB #CCFFCC : All saga steps completed via events.\nNo central orchestrator involved.
+
+== Failure Path — Email Fails → Compensating Event ==
+
+Client -> Reg  : POST /users { userName, email }
+activate Reg
+
+Reg   -> DB   : INSERT INTO users
+DB    --> Reg : OK
+Reg   -> Bus  : publish(UserRegisteredEvent { userId, email })
+Reg   --> Client : 202 Accepted { userId }
+deactivate Reg
+
+Bus   -> Email : consume(UserRegisteredEvent)
+activate Email #FF9999
+Email --> Email : ✗ SMTP failure / email invalid
+Email -> Bus   : publish(UserRegistrationFailedEvent\n{ userId, reason: EMAIL_FAILED })
+note right of Bus #FFB6C1 : Topic: user.registration.failed\nTriggers compensating actions
+deactivate Email
+
+Bus   -> Reg   : consume(UserRegistrationFailedEvent)
+activate Reg #FFB6C1
+Reg   -> DB   : DELETE FROM users WHERE id = userId
+DB    --> Reg : OK
+Reg   -> Bus  : publish(UserRegistrationCompensatedEvent { userId })
+note right of Bus : Topic: user.registration.compensated
+deactivate Reg
+
+Bus   -> Audit : consume(UserRegistrationFailedEvent)
+Bus   -> Audit : consume(UserRegistrationCompensatedEvent)
+activate Audit
+Audit --> Audit : Log failure + compensation
+deactivate Audit
+
+note over Client, DB #FFE4E4 : Client already received 202.\nCompensation is asynchronous.\nClient must poll or subscribe for final status.
+
+@enduml

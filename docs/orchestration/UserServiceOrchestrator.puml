@@ -1,0 +1,101 @@
+@startuml UserServiceOrchestrator
+
+title User Service — Saga Orchestration Pattern\n(Ad-Tech Campaign Domain)
+
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 8
+skinparam sequenceParticipantBorderThickness 2
+skinparam noteBackgroundColor #FFFACD
+skinparam noteBorderColor #DAA520
+
+actor          "Client"                    as Client
+participant    "UserServiceOrchestrator"   as Orch   #ADD8E6
+participant    "UserRegistrationService"   as Reg    #90EE90
+participant    "EmailService"              as Email  #90EE90
+participant    "PreferenceService"         as Pref   #90EE90
+participant    "AuditService"              as Audit  #90EE90
+database       "UserDB"                    as DB     #E6E6FA
+
+== Happy Path — All Steps Succeed ==
+
+Client -> Orch  : createUser(userName, email)
+activate Orch
+
+Orch  -> Reg   : validateAndCreateUser(userName, email)
+activate Reg
+Reg   -> DB    : INSERT INTO users
+DB    --> Reg  : OK
+Reg   --> Orch : UserCreated { userId }
+deactivate Reg
+note right of Orch : state = USER_CREATED
+
+Orch  -> Email : sendWelcomeEmail(userId, email)
+activate Email
+Email --> Orch : WelcomeEmailSent
+deactivate Email
+note right of Orch : state = EMAIL_SENT
+
+Orch  -> Pref  : initDefaultPreferences(userId)
+activate Pref
+Pref  --> Orch : PreferencesInitialised
+deactivate Pref
+note right of Orch : state = PREFERENCES_SET
+
+Orch  -> Audit : logUserCreation(userId)
+activate Audit
+Audit --> Orch : AuditLogged
+deactivate Audit
+
+Orch  --> Client : COMPLETED { userId }
+deactivate Orch
+
+== Failure Path — Email Fails → Compensation ==
+
+Client -> Orch  : createUser(userName, email)
+activate Orch #FF9999
+
+Orch  -> Reg   : validateAndCreateUser(userName, email)
+activate Reg
+Reg   -> DB    : INSERT INTO users
+DB    --> Reg  : OK
+Reg   --> Orch : UserCreated { userId }
+deactivate Reg
+
+Orch  -> Email : sendWelcomeEmail(userId, email)
+activate Email #FF9999
+Email --> Orch : EmailFailed ✗
+deactivate Email
+
+note right of Orch #FFB6C1 : FAILURE — trigger compensation\nUndo all completed steps
+
+Orch  -> Reg   : deleteUser(userId)
+activate Reg #FFB6C1
+Reg   -> DB    : DELETE FROM users WHERE id = userId
+DB    --> Reg  : OK
+Reg   --> Orch : UserDeleted (compensated)
+deactivate Reg
+
+Orch  -> Audit : logCompensation(userId, "EMAIL_FAILED")
+activate Audit
+Audit --> Orch : AuditLogged
+deactivate Audit
+
+Orch  --> Client : FAILED { reason: EMAIL_FAILED }
+deactivate Orch
+
+== Failure Path — Registration Fails → No Compensation Needed ==
+
+Client -> Orch  : createUser(userName, email)
+activate Orch #FF9999
+
+Orch  -> Reg   : validateAndCreateUser(userName, email)
+activate Reg #FF9999
+Reg   --> Orch : ValidationFailed ✗\n(duplicate email / invalid input)
+deactivate Reg
+
+note right of Orch #FFB6C1 : FAILURE at first step\nNo prior steps to compensate
+
+Orch  --> Client : FAILED { reason: VALIDATION_FAILED }
+deactivate Orch
+
+@enduml
