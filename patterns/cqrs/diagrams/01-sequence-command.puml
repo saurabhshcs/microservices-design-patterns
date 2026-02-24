@@ -1,0 +1,35 @@
+@startuml CQRS - Command Flow
+skinparam sequenceArrowThickness 2
+title CQRS Pattern - Command Side Flow
+
+actor Client
+participant "AccountCommandController" as ACC
+participant "AccountCommandService" as ACS
+participant "Account\n(Write Model)" as A
+participant "ApplicationEventPublisher" as AEP
+participant "AccountProjection" as AP
+participant "InMemoryAccountReadRepository" as ARR
+
+Client -> ACC: POST /commands/accounts\n{ownerId, ownerName, initialDeposit}
+activate ACC
+ACC -> ACS: handle(CreateAccountCommand)
+activate ACS
+ACS -> A: Account.open(ownerId, ownerName, initialDeposit)
+activate A
+A -> A: apply(AccountOpenedEvent)
+A -> ACS: Account (with pendingEvents)
+deactivate A
+ACS -> ACS: writeRepository.save(account)
+ACS -> AEP: publishEvent(AccountOpenedEvent)
+activate AEP
+AEP -> AP: on(AccountOpenedEvent)
+activate AP
+AP -> ARR: saveAccountView(AccountView)
+AP -> ARR: addTransaction(TransactionView)
+deactivate AP
+deactivate AEP
+ACS -> ACC: accountId
+deactivate ACS
+ACC -> Client: HTTP 201\n{accountId: UUID}
+deactivate ACC
+@enduml

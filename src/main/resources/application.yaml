@@ -1,3 +1,5 @@
 spring:
   application:
-    name: microservices-design-patterns
+    name: cqrs-banking
+server:
+  port: 8082
