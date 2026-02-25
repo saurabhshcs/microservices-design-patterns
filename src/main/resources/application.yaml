@@ -1,5 +1,5 @@
 spring:
   application:
-    name: cqrs-banking
+    name: saga-orchestration-ecommerce
 server:
-  port: 8082
+  port: 8081

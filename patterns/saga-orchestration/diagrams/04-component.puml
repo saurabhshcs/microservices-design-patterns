@@ -1,0 +1,32 @@
+@startuml Saga Orchestration - Component Diagram
+skinparam componentStyle rectangle
+title Component Diagram - Saga Orchestration Pattern
+
+package "API Layer" {
+    [OrderController]
+}
+
+package "Orchestration" {
+    [OrderSagaOrchestrator]
+}
+
+package "Saga Steps" {
+    interface "SagaStep<Order>" as SagaStep
+    [PaymentService] ..|> SagaStep
+    [InventoryService] ..|> SagaStep
+    [ShippingService] ..|> SagaStep
+}
+
+package "Domain" {
+    [Order]
+    [OrderStatus]
+    [SagaResult]
+}
+
+[OrderController] --> [OrderSagaOrchestrator] : processOrder(order)
+[OrderSagaOrchestrator] --> SagaStep : execute() / compensate()
+[OrderSagaOrchestrator] --> [Order] : updateStatus()
+[PaymentService] --> [SagaResult] : returns
+[InventoryService] --> [SagaResult] : returns
+[ShippingService] --> [SagaResult] : returns
+@enduml

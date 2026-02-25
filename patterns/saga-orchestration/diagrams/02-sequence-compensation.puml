@@ -1,0 +1,46 @@
+@startuml Saga Orchestration - Compensation Flow
+skinparam sequenceArrowThickness 2
+title Saga Orchestration Pattern - Compensation (Inventory Failure)
+
+actor Customer
+participant "OrderController" as OC
+participant "OrderSagaOrchestrator" as OSO
+participant "PaymentService" as PS
+participant "InventoryService" as IS
+
+Customer -> OC: POST /api/v1/orders\n{productId: PROD-003 (out of stock)}
+activate OC
+OC -> OSO: processOrder(order)
+activate OSO
+
+OSO -> PS: execute(order)
+activate PS
+PS -> OSO: SagaResult.success("PaymentService")
+deactivate PS
+note right OSO: PaymentService added to\nexecutedSteps (LIFO position 0)
+
+OSO -> IS: execute(order)
+activate IS
+IS -> IS: available stock = 0 < requested
+IS -> OSO: SagaResult.failure("InventoryService", "Insufficient stock")
+deactivate IS
+
+OSO -> OSO: order.fail(reason)
+OSO -> OSO: performCompensation(executedSteps)
+OSO -> OSO: order.updateStatus(COMPENSATING)
+
+note right OSO: LIFO compensation:\nPaymentService compensated first
+
+OSO -> PS: compensate(order)
+activate PS
+PS -> PS: processedPayments.remove(orderId)
+PS -> PS: order.updateStatus(PAYMENT_FAILED)
+PS -> OSO: SagaResult.success("PaymentService-compensation")
+deactivate PS
+
+OSO -> OSO: order.updateStatus(COMPENSATION_COMPLETED)
+OSO -> OC: Order{status: COMPENSATION_COMPLETED}
+deactivate OSO
+OC -> Customer: HTTP 422 Unprocessable Entity\nOrder{status: COMPENSATION_COMPLETED}
+deactivate OC
+@enduml
