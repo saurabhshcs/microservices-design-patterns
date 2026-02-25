@@ -1,0 +1,11 @@
+@startuml CQRS - System Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+title System Context - CQRS Banking Pattern
+
+Person(bankCustomer, "Bank Customer", "Manages bank accounts")
+Person(analyst, "Business Analyst", "Queries account data for reporting")
+System(cqrsSystem, "Banking CQRS System", "Separate command and query\nprocessing for bank accounts\nSpring Boot 3.4.2 / Java 21")
+
+Rel(bankCustomer, cqrsSystem, "Creates accounts, deposits,\nwithdrawals, transfers", "HTTP Commands")
+Rel(analyst, cqrsSystem, "Queries balances,\ntransaction history", "HTTP Queries")
+@enduml

@@ -1,0 +1,38 @@
+@startuml CQRS - Component Diagram
+skinparam componentStyle rectangle
+title CQRS Banking - Component Architecture
+
+package "Command Side" {
+    [AccountCommandController]
+    [AccountCommandService]
+    [Account Aggregate]
+    [InMemoryAccountWriteRepository]
+}
+
+package "Event Bridge" {
+    [Spring ApplicationEventPublisher] as AEP
+    [AccountProjection] as AP
+}
+
+package "Query Side" {
+    [AccountQueryController]
+    [AccountQueryService]
+    [InMemoryAccountReadRepository]
+    [AccountView] as AV
+    [TransactionView] as TV
+}
+
+[AccountCommandController] --> [AccountCommandService]
+[AccountCommandService] --> [Account Aggregate]
+[AccountCommandService] --> [InMemoryAccountWriteRepository]
+[AccountCommandService] --> AEP : publishEvent()
+AEP --> AP : @EventListener
+AP --> [InMemoryAccountReadRepository] : update read model
+[InMemoryAccountReadRepository] --> AV
+[InMemoryAccountReadRepository] --> TV
+[AccountQueryController] --> [AccountQueryService]
+[AccountQueryService] --> [InMemoryAccountReadRepository]
+
+note "Command side: \nAccount aggregate (write model)\nhandles state changes" as NC
+note "Query side:\nAccountView (read model)\noptimized for fast reads" as NQ
+@enduml
