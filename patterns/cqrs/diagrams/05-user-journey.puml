@@ -1,0 +1,39 @@
+@startuml CQRS - User Journey
+title Bank Customer Journey - CQRS Pattern
+
+start
+:Customer opens a bank account;
+note right: Command: CreateAccountCommand
+:System creates Account aggregate;
+:AccountOpenedEvent published;
+:AccountProjection updates AccountView;
+
+:Customer deposits salary;
+note right: Command: DepositMoneyCommand
+:Account.deposit() called;
+:MoneyDepositedEvent published;
+:AccountView.balance updated;
+
+:Customer queries current balance;
+note right: Query (read-only)
+:AccountQueryService reads AccountView;
+:Returns optimized read model;
+:Customer sees current balance;
+
+:Customer views transaction history;
+:Returns list of TransactionView;
+:Shows all deposits, withdrawals;
+
+:Customer withdraws cash;
+note right: Command: WithdrawMoneyCommand
+if (Sufficient funds?) then (yes)
+  :MoneyWithdrawnEvent published;
+  :AccountView.balance reduced;
+else (no)
+  :IllegalStateException thrown;
+  :HTTP 500 error returned;
+  stop
+endif
+:Customer sees updated balance;
+stop
+@enduml
