@@ -4,14 +4,26 @@ A hands-on training project demonstrating key microservices design patterns impl
 
 ## Project Overview
 
-This project explores the **Saga Pattern** for managing distributed transactions across microservices. Using an ad-tech campaign orchestration use case, it demonstrates how to coordinate multi-step business workflows with proper compensation logic when failures occur.
+This project explores foundational **microservice design patterns** implemented in Java with Spring Boot. It covers five patterns across two categories:
+
+- **Distributed Transaction Patterns:** Saga (Orchestration and Choreography) for managing multi-step business workflows with compensation logic.
+- **Architecture Patterns:** CQRS (Command Query Responsibility Segregation), Transactional Outbox, and API Gateway for building scalable, reliable, and maintainable microservice architectures.
+
+Each pattern includes a real-world scenario, complete Java implementation, dependency justifications, and database schemas where applicable.
 
 ### Patterns Covered
 
-| Pattern | Status | Description |
-|---------|--------|-------------|
-| Saga — Orchestration | Implemented | Central orchestrator controls the workflow and compensation |
-| Saga — Choreography | In Progress | Services react to events and coordinate without a central controller |
+| Pattern | Status | Description | Documentation |
+|---------|--------|-------------|---------------|
+| Saga -- Orchestration | Implemented | Central orchestrator controls the workflow and compensation | [src/main/resources/docs/saga/orchestration/](src/main/resources/docs/saga/orchestration/) |
+| Saga -- Choreography | In Progress | Services react to events and coordinate without a central controller | [src/main/resources/docs/saga/choreography/](src/main/resources/docs/saga/choreography/) |
+| CQRS | Documented | Separate read and write models for independent scaling and optimization | [src/main/resources/docs/cqrs/](src/main/resources/docs/cqrs/) |
+| Transactional Outbox | Documented | Reliable event publishing without distributed transactions | [src/main/resources/docs/transactional-outboxing/](src/main/resources/docs/transactional-outboxing/) |
+| API Gateway | Documented | Unified entry point with authentication, rate limiting, and circuit breaking | [src/main/resources/docs/api-gateway/](src/main/resources/docs/api-gateway/) |
+
+### Pattern Selection Guide
+
+For guidance on which pattern to apply and when to combine patterns, see the [Pattern Selection Summary](src/main/resources/docs/summary.md).
 
 ### Domain Context
 
@@ -24,36 +36,78 @@ The examples use an **ad-tech domain**, modelling a campaign launch workflow wit
 
 ## Technology Stack
 
-| Component | Technology |
-|-----------|------------|
-| Language | Java 17 |
-| Framework | Spring Boot 4.0.0 |
-| Build Tool | Gradle (Wrapper included) |
-| Utilities | Lombok |
-| Testing | JUnit 5, Spring Boot Test |
-| Logging | SLF4J + Logback |
+| Component | Technology | Used By |
+|-----------|------------|---------|
+| Language | Java 17 | All patterns |
+| Framework | Spring Boot 4.0.0 (Jakarta EE 10) | All patterns |
+| Gateway | Spring Cloud Gateway 5.0.x | API Gateway |
+| ORM | Spring Data JPA (Hibernate) | CQRS, Outbox |
+| Database | PostgreSQL 15+ | CQRS, Outbox |
+| Message Broker | Apache Kafka 3.7+ | Outbox |
+| Cache / Rate Limiting | Redis 7.x | API Gateway |
+| Circuit Breaker | Resilience4j 2.2.x | API Gateway |
+| Security | Spring Security (JWT / OAuth2) | API Gateway |
+| Build Tool | Gradle (Wrapper included) | All patterns |
+| Utilities | Lombok | All patterns |
+| Testing | JUnit 5, Spring Boot Test, Testcontainers | All patterns |
+| Logging | SLF4J + Logback | All patterns |
 
 ## Project Structure
 
 ```
-src/
-├── main/java/com/saurabhshcs/adtech/microservices/designpattern/
-│   ├── model/
-│   │   └── UserModel.java                   # Domain model using Lombok builder
-│   └── saga/
-│       ├── CampaignOrchestrator.java         # Saga orchestrator with compensation logic
-│       ├── common/
-│       │   ├── OrchestratorState.java        # State machine enum
-│       │   └── LogMessage.java               # Standardised log message templates
-│       ├── orchestrator/
-│       │   └── UserServiceOrchestrator.java  # Entry point stub
-│       └── choreography/
-│           └── UserServiceChoreography.java  # Choreography pattern (in progress)
-└── test/java/com/saurabhshcs/adtech/microservices/designpattern/
-    └── saga/
-        ├── CampaignOrchestratorTest.java     # Unit tests for the orchestrator
-        └── common/
-            └── TestLogConstants.java         # Shared test constants
+.
+├── src/
+│   ├── main/
+│   │   ├── java/com/saurabhshcs/adtech/microservices/designpattern/
+│   │   │   ├── model/
+│   │   │   │   └── UserModel.java
+│   │   │   ├── saga/
+│   │   │   │   ├── CampaignOrchestrator.java
+│   │   │   │   ├── common/
+│   │   │   │   ├── orchestrator/
+│   │   │   │   └── choreography/
+│   │   │   └── cqrs/
+│   │   │       ├── CqrsBankingApplication.java
+│   │   │       └── banking/
+│   │   │           ├── api/
+│   │   │           ├── command/
+│   │   │           ├── domain/
+│   │   │           ├── event/
+│   │   │           ├── projection/
+│   │   │           ├── readmodel/
+│   │   │           ├── repository/
+│   │   │           └── service/
+│   │   └── resources/
+│   │       ├── application.yaml
+│   │       └── docs/                         # All pattern documentation
+│   │           ├── cqrs/                     # CQRS pattern (ShopStream scenario)
+│   │           │   ├── README.md
+│   │           │   ├── scenario.md
+│   │           │   ├── implementation.md
+│   │           │   └── dependencies.md
+│   │           ├── transactional-outboxing/  # Outbox pattern (FinFlow scenario)
+│   │           │   ├── README.md
+│   │           │   ├── scenario.md
+│   │           │   ├── implementation.md
+│   │           │   └── dependencies.md
+│   │           ├── api-gateway/              # API Gateway pattern (RetailHub scenario)
+│   │           │   ├── README.md
+│   │           │   ├── scenario.md
+│   │           │   ├── implementation.md
+│   │           │   └── dependencies.md
+│   │           ├── saga/
+│   │           │   ├── orchestration/        # Saga orchestration diagrams
+│   │           │   └── choreography/         # Saga choreography diagrams
+│   │           ├── patterns/
+│   │           │   └── cqrs/diagrams/        # PlantUML diagrams
+│   │           ├── linkedin-posts/
+│   │           ├── summary.md                # Pattern selection guide
+│   │           └── confluence-publishing.md  # Confluence publishing instructions
+│   └── test/java/com/saurabhshcs/adtech/microservices/designpattern/
+│       ├── saga/
+│       └── cqrs/banking/
+│
+└── build.gradle                              # Project build configuration
 ```
 
 ## Getting Started
