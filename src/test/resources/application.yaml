@@ -1,0 +1,15 @@
+# Test configuration — overrides src/main/resources/application.yaml.
+# Removes routes that require Redis (RequestRateLimiter) and the external JWT provider.
+spring:
+  application:
+    name: api-gateway-test
+  cloud:
+    gateway:
+      routes: []
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://example.com/.well-known/jwks.json
+server:
+  port: 0

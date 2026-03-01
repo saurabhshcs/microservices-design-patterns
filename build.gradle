@@ -53,3 +53,7 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.named('test') { useJUnitPlatform() }
+
+springBoot {
+	mainClass = 'com.saurabhshcs.adtech.microservices.designpattern.saga.ecommerce.SagaOrchestrationApplication'
+}
