@@ -6,7 +6,7 @@ plugins {
 group = 'com.saurabhshcs.adtech'
 version = '0.0.1-SNAPSHOT'
 description = 'Microservice Design Patterns - Saga, CQRS, API Gateway'
-java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
 configurations { compileOnly { extendsFrom annotationProcessor } }
 repositories { mavenCentral() }
 
@@ -21,19 +21,20 @@ dependencyManagement {
 }
 
 dependencies {
-	// --- Saga & CQRS patterns (servlet stack) ---
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
-	// --- API Gateway pattern (reactive stack) ---
-	// Note: spring-cloud-starter-gateway brings in WebFlux/Reactor
+	// --- Reactive web stack (WebFlux + Netty) ---
+	// spring-cloud-starter-gateway transitively brings spring-boot-starter-webflux.
+	// Do NOT add spring-boot-starter-web here — it uses Tomcat (servlet) which
+	// conflicts with the gateway's required Netty runtime.
 	implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
 
-	// JWT validation (JwtDecoder, Jwt, JwtException)
+	// JWT validation: JwtDecoder, Jwt, JwtException, NimbusJwtDecoder
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
 	// Circuit breaker with Resilience4j (reactive)
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+
+	// Actuator
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// --- Utilities ---
 	compileOnly 'org.projectlombok:lombok'
@@ -43,4 +44,12 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs += ['--enable-preview']
+}
+
+tasks.withType(Test).configureEach {
+	jvmArgs(['--enable-preview'])
+}
+
 tasks.named('test') { useJUnitPlatform() }
