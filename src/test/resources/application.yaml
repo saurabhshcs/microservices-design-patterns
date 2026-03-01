@@ -3,6 +3,8 @@
 spring:
   application:
     name: api-gateway-test
+  main:
+    allow-bean-definition-overriding: true
   cloud:
     gateway:
       routes: []
