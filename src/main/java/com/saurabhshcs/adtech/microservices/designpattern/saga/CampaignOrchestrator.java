@@ -37,6 +37,7 @@ public class CampaignOrchestrator {
             state = OrchestratorState.SCHEDULED;
             log.info(CAMPAIGN_SCHEDULED.getMessage(), campaignId);
 
+
             state = OrchestratorState.COMPLETED;
             log.info(ORCHESTRATION_COMPLETED.getMessage(), campaignId);
             return state;

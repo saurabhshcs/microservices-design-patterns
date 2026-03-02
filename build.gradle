@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.4.2'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 group = 'com.saurabhshcs.adtech'
 version = '0.0.1-SNAPSHOT'
@@ -42,6 +43,7 @@ dependencies {
 
 	// --- Tests ---
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 tasks.withType(JavaCompile).configureEach {
@@ -52,4 +54,19 @@ tasks.withType(Test).configureEach {
 	jvmArgs(['--enable-preview'])
 }
 
-tasks.named('test') { useJUnitPlatform() }
+tasks.named('test') {
+	useJUnitPlatform()
+	finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true
+		html.required = true
+	}
+}
+
+springBoot {
+	mainClass = 'com.saurabhshcs.adtech.microservices.designpattern.saga.ecommerce.SagaOrchestrationApplication'
+}
