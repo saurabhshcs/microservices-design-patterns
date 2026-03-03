@@ -40,6 +40,7 @@ public class CampaignOrchestrator {
 
             state = OrchestratorState.COMPLETED;
             log.info(ORCHESTRATION_COMPLETED.getMessage(), campaignId);
+            log.debug("Campaign [{}] final state: {} — {}", campaignId, state.name(), state.getDescription());
             return state;
         } catch (Exception e) {
             log.error(ORCHESTRATION_FAILED.getMessage(), campaignId, e.getMessage(), e);
