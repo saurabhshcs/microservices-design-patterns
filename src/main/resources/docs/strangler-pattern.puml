@@ -1,0 +1,42 @@
+@startuml Strangler Fig Pattern - Banking Account Service
+!theme plain
+title Strangler Fig Pattern — Banking Account Migration
+
+actor "API Client" as client
+
+package "Strangler Facade" #LightBlue {
+  component "StranglerFacade" as facade
+  component "FeatureToggle" as toggle
+}
+
+package "Legacy System (Monolith)" #Pink {
+  component "LegacyAccountService" as legacy
+  database "Legacy DB" as legacyDb
+}
+
+package "Modern Microservice" #LightGreen {
+  component "ModernAccountService" as modern
+  database "Modern DB" as modernDb
+}
+
+client --> facade : createAccount / findAccount / updateBalance
+
+facade --> toggle : check flags
+toggle --> facade : LEGACY or MODERN
+
+facade --> legacy : [toggle=LEGACY]
+legacy --> legacyDb : read/write
+
+facade --> modern : [toggle=MODERN]
+modern --> modernDb : read/write
+
+note right of toggle
+  Migration progress:
+  Phase 1: all → LEGACY (0%)
+  Phase 2: create → MODERN (33%)
+  Phase 3: create+read → MODERN (66%)
+  Phase 4: all → MODERN (100%)
+
+  Then delete legacy code.
+end note
+@enduml
