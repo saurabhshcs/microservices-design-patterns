@@ -34,6 +34,10 @@ dependencies {
 	// Circuit breaker with Resilience4j (reactive)
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
 
+	// Resilience4j standalone modules (bulkhead, circuit breaker core)
+	implementation 'io.github.resilience4j:resilience4j-bulkhead'
+	implementation 'io.github.resilience4j:resilience4j-circuitbreaker'
+
 	// Actuator
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
