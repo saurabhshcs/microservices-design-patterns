@@ -1,0 +1,45 @@
+@startuml Circuit Breaker Pattern - Payment Service
+!theme plain
+title Circuit Breaker Pattern — Banking Payment Domain
+
+participant "API Client" as client
+participant "PaymentCircuitBreakerService" as cb #lightblue
+participant "CircuitBreaker\n(Resilience4j)" as breaker #orange
+participant "PaymentGatewayClient" as gateway #lightgreen
+participant "Fallback Handler" as fallback #pink
+
+== CLOSED State (Normal Operation) ==
+client -> cb : processPayment(request)
+cb -> breaker : decorateSupplier()
+breaker -> gateway : charge(request)
+gateway --> breaker : PaymentResponse(SUCCESS)
+breaker --> cb : success
+cb --> client : PaymentResponse(SUCCESS)
+
+== OPEN State (Circuit Tripped) ==
+client -> cb : processPayment(request)
+cb -> breaker : decorateSupplier()
+breaker -> fallback : CallNotPermittedException
+fallback --> cb : PaymentResponse(PENDING)
+cb --> client : PaymentResponse(PENDING)\n[fallback]
+
+== HALF-OPEN State (Recovery Probe) ==
+client -> cb : processPayment(request)
+cb -> breaker : probe call permitted
+breaker -> gateway : charge(request)
+alt Gateway recovered
+    gateway --> breaker : SUCCESS
+    breaker -> breaker : transition to CLOSED
+else Gateway still failing
+    gateway --> breaker : Exception
+    breaker -> breaker : transition back to OPEN
+end
+
+note right of breaker
+  Config:
+  - Failure threshold: 50%
+  - Sliding window: 10 calls
+  - Open duration: 30 s
+  - Half-open probes: 3
+end note
+@enduml

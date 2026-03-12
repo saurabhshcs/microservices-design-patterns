@@ -1,0 +1,34 @@
+@startuml Bulkhead Pattern - Trading Platform
+!theme plain
+title Bulkhead Pattern — Financial Trading Domain
+
+package "Trading Platform" {
+  [Trade API] as api
+
+  package "Risk Bulkhead\n(max 10 concurrent)" #LightBlue {
+    [TradingBulkheadService] as bh
+    [RiskAssessmentService] as risk
+  }
+
+  package "Rejection Handler" #Pink {
+    [Capacity Rejection] as reject
+  }
+}
+
+database "Market Engine" as engine #LightGreen
+
+api --> bh : executeTrade(request)
+bh --> risk : isWithinRiskLimits()
+risk --> bh : true / false
+bh --> engine : Submit trade
+bh --> reject : BulkheadFullException
+
+note right of bh
+  BulkheadConfig:
+  - maxConcurrentCalls: 10
+  - maxWaitDuration: 500ms
+
+  If full → REJECTED immediately
+  No thread starvation
+end note
+@enduml
