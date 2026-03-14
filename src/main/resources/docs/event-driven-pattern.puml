@@ -1,0 +1,41 @@
+@startuml Event-Driven Pattern - Payment Domain
+!theme plain
+title Event-Driven Pattern — Payment / Banking Domain
+
+participant "PaymentService" as svc #lightblue
+participant "PaymentEventPublisher" as pub #orange
+participant "Spring Event Bus\n(in-process / Kafka)" as bus #lightgray
+participant "FraudDetectionHandler" as fraud #pink
+participant "NotificationHandler" as notify #lightgreen
+
+== Payment Initiated ==
+svc -> pub : publish(PaymentInitiated)
+pub -> bus : publishEvent()
+bus --> fraud : onPaymentInitiated()
+note right of fraud
+  Flags payment if
+  amount ≥ £10,000
+end note
+
+== Payment Completed ==
+svc -> pub : publish(PaymentCompleted)
+pub -> bus : publishEvent()
+bus --> notify : onPaymentCompleted()
+note right of notify
+  Sends confirmation
+  to customer
+end note
+
+== Payment Failed ==
+svc -> pub : publish(PaymentFailed)
+pub -> bus : publishEvent()
+bus --> notify : onPaymentFailed()
+
+note over svc, notify
+  PaymentService knows nothing about
+  fraud detection or notifications.
+  Handlers react autonomously.
+  New handlers can be added
+  without changing PaymentService.
+end note
+@enduml
