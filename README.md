@@ -3,7 +3,7 @@
 A comprehensive, hands-on training project demonstrating **10 microservice design patterns** implemented in Java 17 and Spring Boot 3.4.2. Every pattern is applied to a real industry domain (banking, financial trading, eCommerce, payment) and is fully covered by TDD unit tests.
 
 [![Build](https://img.shields.io/badge/build-passing-brightgreen)](#running-tests)
-[![Tests](https://img.shields.io/badge/tests-160%20passing-brightgreen)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-184%20passing-brightgreen)](#running-tests)
 [![Coverage](https://img.shields.io/badge/line%20coverage-99%25-brightgreen)](#test-coverage)
 [![Branch Coverage](https://img.shields.io/badge/branch%20coverage-100%25-brightgreen)](#test-coverage)
 [![Java](https://img.shields.io/badge/java-17-blue)](https://adoptium.net/)
@@ -256,7 +256,7 @@ microservice-patterns/
 │   │       ├── application.yaml           # Gateway routes, security config
 │   │       └── docs/                      # PlantUML diagrams + developer guides
 │   └── test/
-│       ├── java/…/designpattern/          # 160 TDD tests (3 positive + 3 negative each)
+│       ├── java/…/designpattern/          # 184 TDD tests (3 positive + 3 negative each)
 │       └── resources/
 │           └── application.yaml           # Test overrides: empty routes, mock JWT, no Redis
 ├── CLAUDE.md                              # AI assistant project context
