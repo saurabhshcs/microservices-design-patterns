@@ -1,0 +1,38 @@
+@startuml Sidecar Pattern - eCommerce Product Service
+!theme plain
+title Sidecar Pattern — eCommerce Product Service
+
+node "Service Pod / Container Group" {
+  component "ProductService\n(main container)" as main #lightblue
+  component "LoggingSidecar" as log #lightyellow
+  component "SidecarMetrics" as metrics #lightyellow
+
+  main --> log : logRequest / logResponse / logError
+  main --> metrics : recordRequest(latency, success)
+}
+
+actor "API Gateway" as gw
+database "Product Catalogue\n(in-memory)" as db
+
+gw --> main : registerProduct / findProduct
+main --> db : read / write
+
+note right of log
+  Cross-cutting concerns
+  handled by sidecar:
+  - Structured logging
+  - Latency metrics
+  - Error tracking
+
+  Main service has
+  zero logging code
+end note
+
+note bottom of metrics
+  SidecarMetrics:
+  - totalRequests
+  - totalErrors
+  - avgLatencyMs
+  - errorRate
+end note
+@enduml
