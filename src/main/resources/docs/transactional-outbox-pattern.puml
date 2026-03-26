@@ -1,0 +1,207 @@
+@startuml Transactional Outbox — Component Architecture (Telco SIM Activation)
+!theme plain
+skinparam linetype ortho
+skinparam componentStyle rectangle
+skinparam defaultFontSize 13
+
+title Transactional Outbox Pattern — Telco SIM Activation Platform
+
+package "Telco Command Side" #LightBlue {
+    component [SIMCardCommandService] as CmdSvc <<Service>>
+    component [SIMCard\n(Aggregate)] as Agg <<Domain>>
+    component [SIMCardRepository] as SimRepo <<Repository>>
+    component [OutboxRepository] as OutboxRepo <<Repository>>
+}
+
+database "SIM Card Store\n(PostgreSQL / In-Memory)" as SimDB <<Persistence>>
+database "Outbox Table\n(PostgreSQL / In-Memory)" as OutboxDB <<Persistence>>
+
+package "Outbox Relay" #LightYellow {
+    component [OutboxRelayService] as Relay <<Scheduler>>
+    component [MessageBrokerPublisher] as Publisher <<Port>>
+}
+
+queue "Kafka / RabbitMQ\n(topic: sim.events)" as Broker <<Message Broker>>
+
+package "Downstream Consumers" #LightGreen {
+    component [Billing Service] as Billing <<Consumer>>
+    component [Network Provisioning] as Network <<Consumer>>
+    component [SMS Notification] as SMS <<Consumer>>
+}
+
+package "Telco Query Side" #LightCoral {
+    component [SIMCardQueryService] as QuerySvc <<Service>>
+}
+
+' Write path
+CmdSvc --> Agg       : mutates state
+CmdSvc --> SimRepo   : save(simCard)
+CmdSvc --> OutboxRepo : save(outboxMessage)\n[same transaction]
+SimRepo  --> SimDB
+OutboxRepo --> OutboxDB
+
+' Relay path
+Relay --> OutboxRepo  : findPendingMessages()
+Relay --> Publisher   : publish(outboxMessage)
+Relay --> OutboxRepo  : update(PUBLISHED)
+Publisher --> Broker
+
+' Downstream
+Broker --> Billing   : SIMActivatedEvent
+Broker --> Network   : SIMActivatedEvent
+Broker --> SMS       : SIMActivatedEvent
+
+' Query path
+QuerySvc --> SimRepo    : findById / findByMsisdn
+QuerySvc --> OutboxRepo : countByStatus
+
+note top of CmdSvc
+  <b>Atomic guarantee</b>
+  save(simCard) + save(outboxMessage)
+  are committed in the same
+  DB transaction — no dual-write risk
+end note
+
+note top of Relay
+  <b>Polling relay</b>
+  • Runs on @Scheduled interval
+    (or driven by CDC / Debezium)
+  • Only processes PENDING rows
+  • Marks PUBLISHED or FAILED
+  • Idempotent: safe to re-run
+end note
+
+@enduml
+
+@startuml Transactional Outbox — SIM Activation Sequence
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam defaultFontSize 12
+
+title SIM Activation — Transactional Outbox Sequence
+
+actor "Telco Operator" as Operator
+participant "SIMCardCommandService" as CmdSvc
+participant "SIMCard\n(Aggregate)" as SimCard
+participant "SIMCardRepository" as SimRepo
+participant "OutboxRepository" as OutboxRepo
+participant "OutboxRelayService" as Relay
+participant "MessageBrokerPublisher" as Publisher
+participant "Billing Service" as Billing
+participant "Network Provisioning" as Network
+
+== Command Phase (atomic) ==
+
+Operator -> CmdSvc  : handle(ActivateSIMCommand{simId})
+activate CmdSvc
+
+CmdSvc -> SimRepo   : findById(simId)
+SimRepo --> CmdSvc  : SIMCard{status=PENDING}
+
+CmdSvc -> SimCard   : activate()
+activate SimCard
+  SimCard -> SimCard : status ← ACTIVE
+  SimCard -> SimCard : pendingEvents.add(SIMActivatedEvent)
+SimCard --> CmdSvc  : (updated aggregate)
+deactivate SimCard
+
+group "Same DB Transaction"
+  CmdSvc -> SimRepo   : save(simCard{ACTIVE})
+  note right of SimRepo : SIM state committed
+  CmdSvc -> SimCard   : drainPendingEvents()
+  SimCard --> CmdSvc  : [SIMActivatedEvent]
+  CmdSvc -> OutboxRepo : save(OutboxMessage{\n  eventType=SIMActivatedEvent,\n  status=PENDING})
+  note right of OutboxRepo : Outbox row committed
+end
+
+CmdSvc --> Operator : SIMCard{status=ACTIVE}
+deactivate CmdSvc
+
+== Relay Phase (asynchronous, periodic) ==
+
+Relay -> OutboxRepo  : findPendingMessages()
+OutboxRepo --> Relay : [OutboxMessage{SIMActivatedEvent, PENDING}]
+
+Relay -> Publisher   : publish(outboxMessage)
+activate Publisher
+Publisher --> Relay  : OK
+deactivate Publisher
+
+Relay -> OutboxRepo  : update(message{status=PUBLISHED})
+
+Publisher --> Billing  : SIMActivatedEvent payload
+Publisher --> Network  : SIMActivatedEvent payload
+
+note over Billing, Network
+  Downstream services react independently.
+  If relay fails here, message stays PENDING
+  and will be retried on the next poll cycle.
+end note
+
+@enduml
+
+@startuml Transactional Outbox — State Machines
+!theme plain
+skinparam defaultFontSize 12
+
+title SIM Card State Machine
+
+[*] --> PENDING : RegisterSIMCommand
+
+PENDING    --> ACTIVE      : ActivateSIMCommand
+ACTIVE     --> SUSPENDED   : SuspendSIMCommand
+ACTIVE     --> TERMINATED  : TerminateSIMCommand
+SUSPENDED  --> ACTIVE      : ReactivateSIMCommand
+SUSPENDED  --> TERMINATED  : TerminateSIMCommand
+TERMINATED --> [*]
+
+note right of PENDING
+  SIM registered, awaiting
+  network provisioning
+end note
+
+note right of ACTIVE
+  Subscriber can make calls,
+  send SMS, use data
+end note
+
+note right of SUSPENDED
+  Network access blocked;
+  bill still generated
+end note
+
+note right of TERMINATED
+  Number returned to pool.
+  No further state changes allowed.
+end note
+
+@enduml
+
+@startuml Transactional Outbox — Outbox Message Lifecycle
+!theme plain
+skinparam defaultFontSize 12
+
+title OutboxMessage Status Lifecycle
+
+[*] --> PENDING : Command service writes\natomically with SIM state
+
+PENDING --> PUBLISHED : Relay successfully\npublishes to broker
+
+PENDING --> FAILED : Broker throws\nexception
+
+FAILED --> PENDING  : Manual retry /\nnext scheduled run
+
+PUBLISHED --> [*]
+
+note right of PENDING
+  Polled by OutboxRelayService
+  on each scheduled run
+end note
+
+note right of FAILED
+  retryCount is incremented.
+  A DLQ strategy (max retries)
+  can be applied in production.
+end note
+
+@enduml
