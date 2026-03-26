@@ -318,7 +318,7 @@ class SIMCardCommandServiceTest {
 
         @Test
         @DisplayName("outbox message payload is valid JSON containing simId")
-        void payloadIsValidJsonWithSimId() throws Exception {
+        void payloadIsValidJsonWithSimId() {
             SIMCard sim = registerSIM();
             OutboxMessage msg = outboxRepository.findPendingMessages().get(0);
 
